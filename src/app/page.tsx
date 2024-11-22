@@ -1,6 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback, use } from 'react';
-import Footer from "./components/footer";
+import React, { useState, useEffect, useCallback } from 'react';
 import { debounce } from 'lodash';
 
 const SESSION = 'challenge_surfe_sesh';
@@ -38,7 +37,7 @@ export default function Home() {
 
   // Debounced save function with fetch
   const savedNote = useCallback(
-    debounce(async (body: any, id: number) => {
+    debounce(async (body: string) => {
       try {
         let response;
 
@@ -76,12 +75,14 @@ export default function Home() {
     [ID]
   )
 
-  const handleNoteChange = (e: { target: { value: any; }; }) => {
+  const handleNoteChange = (e: { target: { value: string; }; }) => {
     const newNote = e.target.value;
     setNote(newNote);
     savedNote(newNote);
     
   }
+  
+  if (loading) return <div>Loading...</div>;
 
   return (
     <div className="mt-24">
@@ -106,7 +107,6 @@ export default function Home() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
