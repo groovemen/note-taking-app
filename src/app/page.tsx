@@ -1,14 +1,88 @@
-import Image from "next/image";
+"use client";
+import React, { useState, useEffect, useCallback, use } from 'react';
 import Footer from "./components/footer";
+import { debounce } from 'lodash';
+
+const SESSION = 'challenge_surfe_session';
+const BASE_URL = `https://challenge.surfe.com/${SESSION}`;
 
 export default function Home() {
+  const [note, setNote] = useState('');
+  const [ID, setID] = useState(0);
+
+  useEffect(() => {
+    // Fetch the initial note - GET
+    const fetchNote = async () => {
+      try {
+        const response = await fetch(`${BASE_URL}/notes`);
+        if (response.ok) {
+          const noteData = await response.json();
+          setNote(noteData[0].body || '');
+        }
+      } catch (err) {
+        console.error('Error fetching note:', err);
+      }
+    };
+
+    fetchNote();
+  }, []);
+
+  // Debounced save function with fetch
+  const savedNote = useCallback(
+    debounce(async (body: any, id: number) => {
+      try {
+        let response;
+
+        if (id) {
+          // Update the existing note
+          response = await fetch(`${BASE_URL}/notes/${id}`, {
+            method: "PUT",
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({body}),
+          });
+        } else {
+          response = await fetch(`${BASE_URL}/notes`, {
+            method: "POST",
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({body})
+          })
+
+          if(response.ok) {
+            const newNote = await response.json();
+            setID(newNote.id);
+          }
+        }
+
+        if(!response.ok) {
+          throw new Error('Failed to save the note')
+        }
+      } catch (err) {
+        console.error('Save error:', err);
+      }
+    }, 500),
+    [ID]
+  )
+
+  const handleNoteChange = (e: { target: { value: any; }; }) => {
+    const newNote = e.target.value;
+    setNote(newNote);
+    savedNote(newNote, 0);
+    
+  }
+
   return (
     <div className="mt-24">
       <main className="container mx-auto min-h-screen">
-        <div className="relative w-96 bg-white rounded-lg p-8">
+        <div className="relative w-96 bg-white rounded-lg p-6">
           <h2 className="text-3xl font-bold text-gray-900">Note Title</h2>
           <p className="text-sm text-gray-600">Last update: 22 Nov 2024</p>
           <textarea
+            value={note}
+            onChange={handleNoteChange}
             className="w-full h-44 p-2 text-gray-950 border rounded-md mt-6"
             placeholder="Start typing here... Use @ to mention users"
           ></textarea>
