@@ -3,28 +3,37 @@ import React, { useState, useEffect, useCallback, use } from 'react';
 import Footer from "./components/footer";
 import { debounce } from 'lodash';
 
-const SESSION = 'challenge_surfe_session';
+const SESSION = 'challenge_surfe_sesh';
 const BASE_URL = `https://challenge.surfe.com/${SESSION}`;
 
 export default function Home() {
   const [note, setNote] = useState('');
-  const [ID, setID] = useState(0);
+  const [ID, setID] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Fetch the initial note - GET
-    const fetchNote = async () => {
+    const fetchSessionData = async () => {
       try {
+        setLoading(true);
+
+        // Existing Notes
         const response = await fetch(`${BASE_URL}/notes`);
         if (response.ok) {
           const noteData = await response.json();
-          setNote(noteData[0].body || '');
+          if (noteData.length > 0) {
+            const latestNote = noteData[noteData.length - 1];
+            setNote(latestNote.body);
+            setID(latestNote.id);
+          }
         }
+        setLoading(false);
       } catch (err) {
         console.error('Error fetching note:', err);
       }
     };
 
-    fetchNote();
+    fetchSessionData();
   }, []);
 
   // Debounced save function with fetch
@@ -33,9 +42,9 @@ export default function Home() {
       try {
         let response;
 
-        if (id) {
+        if (ID !== null) {
           // Update the existing note
-          response = await fetch(`${BASE_URL}/notes/${id}`, {
+          response = await fetch(`${BASE_URL}/notes/${ID}`, {
             method: "PUT",
             headers: {
               'Content-Type': 'application/json',
@@ -70,7 +79,7 @@ export default function Home() {
   const handleNoteChange = (e: { target: { value: any; }; }) => {
     const newNote = e.target.value;
     setNote(newNote);
-    savedNote(newNote, 0);
+    savedNote(newNote);
     
   }
 
