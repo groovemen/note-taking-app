@@ -96,7 +96,9 @@ export default function Home() {
     savedNote(newNote);
     
     // Detect mention @
-    const lastWord = newNote.split(' ').pop();
+    const words = newNote.split(/\s+/);
+    const lastWord = words[words.length - 1];
+    
     if (lastWord.startsWith('@')) {
       const searchWord = lastWord.slice(1).toLowerCase();
       const filteredUsers = users
@@ -111,8 +113,9 @@ export default function Home() {
   }
 
   const handleMention = (user) => {
-    if (!user || !user.first_name) return;
     
+    if (!user || !user.first_name) return;
+
     const noteWords = note.split(' ');
     noteWords[noteWords.length - 1] = `@${user.first_name} `;
     const newNote = noteWords.join(' ')
