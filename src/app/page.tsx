@@ -4,12 +4,17 @@ import { debounce } from 'lodash';
 
 const SESSION = 'challenge_surfe_sesh';
 const BASE_URL = `https://challenge.surfe.com/${SESSION}`;
+const USERS_URL = 'https://challenge.surfe.com/users';
 
 export default function Home() {
   const [note, setNote] = useState('');
   const [ID, setID] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Fetch the existing notes and users
   useEffect(() => {
     // Fetch the initial note - GET
     const fetchSessionData = async () => {
@@ -26,16 +31,26 @@ export default function Home() {
             setID(latestNote.id);
           }
         }
+
+        // Existing Users
+        const userResponse = await fetch(USERS_URL);
+        if (!userResponse.ok) {
+          throw new Error('Failed to load the users');
+        }
+        const userData = await userResponse.json();
+        setUsers(userData);
+
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching note:', err);
+        setError(err.message);
+        setLoading(false);
       }
     };
 
     fetchSessionData();
   }, []);
 
-  // Debounced save function with fetch
+  // Debounced function for save note with fetch
   const savedNote = useCallback(
     debounce(async (body: string) => {
       try {
@@ -80,9 +95,34 @@ export default function Home() {
     setNote(newNote);
     savedNote(newNote);
     
+    // Detect mention @
+    const lastWord = newNote.split(' ').pop();
+    if (lastWord.startsWith('@')) {
+      const searchWord = lastWord.slice(1).toLowerCase();
+      const filteredUsers = users
+        .filter(user =>
+          user && user.first_name &&
+          user.first_name.toLowerCase().includes(searchWord)
+        ).slice();      
+      setFilteredUsers(filteredUsers);
+    } else {
+      setFilteredUsers([]);
+    }
+  }
+
+  const handleMention = (user) => {
+
+    const noteWords = note.split(' ');
+    noteWords[noteWords.length - 1] = `@${user.first_name} `;
+    const newNote = noteWords.join(' ')
+
+    setNote(newNote);
+    setFilteredUsers([]);
+    savedNote(newNote);
   }
   
   if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
 
   return (
     <div className="mt-24">
@@ -96,6 +136,19 @@ export default function Home() {
             className="w-full h-44 p-2 text-gray-950 border rounded-md mt-6"
             placeholder="Start typing here... Use @ to mention users"
           ></textarea>
+          {filteredUsers.length > 0 && (
+            <div className="border rounded-md mt-1 h-44 overflow-scroll">
+              {filteredUsers.map(user => (
+                <div
+                  key={user?.id || Math.random()}
+                  className="text-gray-800 px-2 py-1 hover:bg-gray-100 cursor-pointer capitalize"
+                  onClick={() => user?.first_name && handleMention(user)}
+                >
+                  {user.first_name}
+                </div>
+              ))}
+            </div>
+          )}
           <div className="w-full flex justify-between mt-12">
             <div className="flex gap-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide text-gray-600 cursor-pointer lucide-type"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
