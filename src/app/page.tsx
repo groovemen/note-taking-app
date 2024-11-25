@@ -111,7 +111,8 @@ export default function Home() {
   }
 
   const handleMention = (user) => {
-
+    if (!user || !user.first_name) return;
+    
     const noteWords = note.split(' ');
     noteWords[noteWords.length - 1] = `@${user.first_name} `;
     const newNote = noteWords.join(' ')
