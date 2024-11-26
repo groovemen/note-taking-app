@@ -4,11 +4,16 @@ const SESSION = 'challenge_surfe_sesh';
 const BASE_URL = `https://challenge.surfe.com/${SESSION}`;
 const USERS_URL = 'https://challenge.surfe.com/users';
 
+interface Users {
+  id: number;
+  first_name: string;
+}
+
 export function useExistingUserAndNotes() {
   const [id, setID] = useState('');
   const [note, setNote] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [error, setError] = useState(null);
+  const [users, setUsers] = useState<Users[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -32,12 +37,17 @@ export function useExistingUserAndNotes() {
         if (!userResponse.ok) {
           throw new Error('Failed to load the users');
         }
-        const userData = await userResponse.json();
+        
+        const userData: Users[] = await userResponse.json();
         setUsers(userData);
 
         setIsLoading(false);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("An unknown error occurred");
+        }
         setIsLoading(false);
       }
     };
