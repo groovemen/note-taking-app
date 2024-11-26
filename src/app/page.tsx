@@ -12,10 +12,18 @@ interface Users {
   first_name: string;
 }
 
+interface UseExistingNotesAndUsersProps {
+  setID: React.Dispatch<React.SetStateAction<number | null>>;
+  setNote: React.Dispatch<React.SetStateAction<string>>;
+}
+
 // use-existing-notes-and-users
-function useExistingNotesAndUsers({ setID, setNote }) {
-  const [users, setUsers] = useState([]);
-  const [error, setError] = useState(null);
+function useExistingNotesAndUsers({
+  setID,
+  setNote,
+}: UseExistingNotesAndUsersProps) {
+  const [users, setUsers] = useState<Users[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -44,8 +52,12 @@ function useExistingNotesAndUsers({ setID, setNote }) {
         setUsers(userData);
 
         setIsLoading(false);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);  // Safe access to 'message'
+        } else {
+          setError("An unknown error occurred");
+        }
         setIsLoading(false);
       }
     };
@@ -57,9 +69,9 @@ function useExistingNotesAndUsers({ setID, setNote }) {
 }
 
 export default function Home() {
-  const [ID, setID] = useState(null);
+  const [ID, setID] = useState<number | null>(null);
   const [note, setNote] = useState("");
-  const [filteredUsers, setFilteredUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState<Users[]>([]);
 
   // Fetch the existing notes and users
   const { users, error, isLoading } = useExistingNotesAndUsers({
@@ -106,7 +118,7 @@ export default function Home() {
     [ID]
   )
 
-  const handleNoteChange = (e: { target: { value: string } }) => {
+  const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newNote = e.target.value;
     setNote(newNote);
     savedNote(newNote);
@@ -119,7 +131,7 @@ export default function Home() {
       const searchWord = lastWord.slice(1).toLowerCase();
       const filteredUsers = users
         .filter(
-          (user) =>
+          (user: Users) =>
             user &&
             user.first_name &&
             user.first_name.toLowerCase().includes(searchWord)
