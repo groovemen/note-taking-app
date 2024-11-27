@@ -1,101 +1,114 @@
-import Image from "next/image";
+"use client";
+import React, { useState, useCallback } from "react";
+import { debounce } from "lodash";
+import NoteFooter from "./components/note-footer";
+import { useExistingData } from "@/hooks/use-existing-notes-and-users";
+
+const SESSION = 'challenge_surfe_sesh';
+const BASE_URL = `https://challenge.surfe.com/${SESSION}`;
+
+interface Users {
+  id: number;
+  first_name: string;
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const { id, note, users, error, isLoading, setID, setNote } = useExistingData();
+  const [filteredUsers, setFilteredUsers] = useState<Users[]>([]);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const savedNote = useCallback(
+    debounce(async (body: string) => {
+      try {
+        const url = id ? `${BASE_URL}/notes/${id}` : `${BASE_URL}/notes/`;
+        const method = id ? "PUT" : "POST";
+
+        const response = await (fetch(url, {
+          method,
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({body})
+        }))
+
+        if(!response.ok) {
+          throw new Error('Failed to save the note')
+        }
+        if (!id) {
+          const newNote = await response.json();
+          setID(newNote.id);
+        }
+      } catch (err) {
+        console.error("Save error:", err);
+      }
+    }, 500),
+    [id]
+  )
+
+  const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newNote = e.target.value;
+    setNote(newNote);
+    savedNote(newNote);
+
+    // Detect mention @
+    const words = newNote.split(/\s+/);
+    const lastWord = words[words.length - 1];
+
+    if (lastWord.startsWith("@")) {
+      const searchWord = lastWord.slice(1).toLowerCase();
+      const filteredUsers = users
+        .filter(
+          (user: Users) =>
+            user.first_name.toLowerCase().includes(searchWord)
+        )
+        .slice(0, 10);
+      setFilteredUsers(filteredUsers);
+    } else {
+      setFilteredUsers([]);
+    }
+  };
+
+  const handleMention = (user: {first_name: string}) => {
+    const noteWords = note.split(" ");
+    noteWords[noteWords.length - 1] = `@${user.first_name} `;
+    const newNote = noteWords.join(" ");
+
+    setNote(newNote);
+    setFilteredUsers([]);
+    savedNote(newNote);
+  };
+
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+
+  return (
+    <div className="mt-24">
+      <main className="container mx-auto min-h-screen">
+        <h1 className="text-3xl font-semibold text-center mb-8">
+          Note-taking App
+        </h1>
+        <div className="relative w-96 bg-white rounded-lg p-6 m-auto">
+          <h2 className="text-3xl font-bold text-gray-900">Note Title</h2>
+          <p className="text-sm text-gray-600">Last update: 22 Nov 2024</p>
+          <textarea
+            value={note}
+            onChange={handleNoteChange}
+            className="w-full h-44 p-2 text-gray-950 border rounded-md mt-6"
+            placeholder="Start typing here... Use @ to mention users"
+          ></textarea>
+          {filteredUsers.length > 0 && (
+            <div className="border rounded-md mt-1 h-44 overflow-scroll">
+              {filteredUsers.map((user) => (
+                <div
+                  key={user?.id || Math.random()}
+                  className="text-gray-800 px-2 py-1 hover:bg-gray-100 cursor-pointer capitalize"
+                  onClick={() => user?.first_name && handleMention(user)}
+                >
+                  {user.first_name}
+                </div>
+              ))}
+            </div>
+          )}
+          <NoteFooter />
         </div>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
