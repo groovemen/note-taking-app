@@ -1,122 +1,45 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { debounce } from "lodash";
-import Link from "next/link";
 import NoteFooter from "./components/note-footer";
+import { useExistingData } from "@/hooks/use-existing-notes-and-users";
 
 const SESSION = 'challenge_surfe_sesh';
 const BASE_URL = `https://challenge.surfe.com/${SESSION}`;
-const USERS_URL = 'https://challenge.surfe.com/users';
 
 interface Users {
   id: number;
   first_name: string;
 }
 
-interface UseExistingNotesAndUsersProps {
-  setID: React.Dispatch<React.SetStateAction<number | null>>;
-  setNote: React.Dispatch<React.SetStateAction<string>>;
-}
-
-// use-existing-notes-and-users
-function useExistingNotesAndUsers({
-  setID,
-  setNote,
-}: UseExistingNotesAndUsersProps) {
-  const [users, setUsers] = useState<Users[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Fetch the initial note - GET
-    const fetchSessionData = async () => {
-      try {
-        setIsLoading(true);
-
-        // Existing Notes
-        const response = await fetch(`${BASE_URL}/notes`);
-        if (response.ok) {
-          const noteData = await response.json();
-          if (noteData.length > 0) {
-            const latestNote = noteData[noteData.length - 1];
-            setNote(latestNote.body);
-            setID(latestNote.id);
-          }
-        }
-
-        // Existing Users
-        const userResponse = await fetch(USERS_URL);
-        if (!userResponse.ok) {
-          throw new Error("Failed to load the users");
-        }
-        const userData = await userResponse.json();
-        setUsers(userData);
-
-        setIsLoading(false);
-      } catch (err: unknown) {
-        if (err instanceof Error) {
-          setError(err.message);  // Safe access to 'message'
-        } else {
-          setError("An unknown error occurred");
-        }
-        setIsLoading(false);
-      }
-    };
-
-    fetchSessionData();
-  }, []);
-
-  return { users, error, isLoading };
-}
-
 export default function Home() {
-  const [ID, setID] = useState<number | null>(null);
-  const [note, setNote] = useState("");
+  const { id, note, users, error, isLoading, setID, setNote } = useExistingData();
   const [filteredUsers, setFilteredUsers] = useState<Users[]>([]);
-
-  // Fetch the existing notes and users
-  const { users, error, isLoading } = useExistingNotesAndUsers({
-    setID,
-    setNote,
-  });
 
   const savedNote = useCallback(
     debounce(async (body: string) => {
       try {
-        let response;
+        const url = id ? `${BASE_URL}/notes/${id}` : `${BASE_URL}/notes/`;
+        const method = id ? "PUT" : "POST";
 
-        if (ID !== null) {
-          // Update the existing note
-          response = await fetch(`${BASE_URL}/notes/${ID}`, {
-            method: "PUT",
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({body}),
-          });
-        } else {
-          response = await fetch(`${BASE_URL}/notes`, {
-            method: "POST",
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({body})
-          })
-
-          if(response.ok) {
-            const newNote = await response.json();
-            setID(newNote.id);
-          }
-        }
+        const response = await (fetch(url, {
+          method,
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({body})
+        }))
 
         if(!response.ok) {
           throw new Error('Failed to save the note')
         }
+        if (!id) {
+          const newNote = await response.json();
+          setID(newNote.id);
+        }
       } catch (err) {
-        console.error('Save error:', err);
+        console.error("Save error:", err);
       }
     }, 500),
-    [ID]
+    [id]
   )
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -133,8 +56,6 @@ export default function Home() {
       const filteredUsers = users
         .filter(
           (user: Users) =>
-            user &&
-            user.first_name &&
             user.first_name.toLowerCase().includes(searchWord)
         )
         .slice(0, 10);
@@ -144,9 +65,7 @@ export default function Home() {
     }
   };
 
-  const handleMention = (user: Users) => {
-    if (!user || !user.first_name) return;
-
+  const handleMention = (user: {first_name: string}) => {
     const noteWords = note.split(" ");
     noteWords[noteWords.length - 1] = `@${user.first_name} `;
     const newNote = noteWords.join(" ");
