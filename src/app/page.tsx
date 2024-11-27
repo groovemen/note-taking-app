@@ -13,12 +13,17 @@ interface Users {
 }
 
 export default function Home() {
+  // Integrate custom data management hook
   const { id, note, users, error, isLoading, setID, setNote } = useExistingData();
+
+  // State management for user filtering during mentions
   const [filteredUsers, setFilteredUsers] = useState<Users[]>([]);
 
+  // Optimized note saving with debounce to reduce unnecessary network calls
   const savedNote = useCallback(
     debounce(async (body: string) => {
       try {
+        // Dynamically determine API endpoint and method
         const url = id ? `${BASE_URL}/notes/${id}` : `${BASE_URL}/notes/`;
         const method = id ? "PUT" : "POST";
 
@@ -28,9 +33,12 @@ export default function Home() {
           body: JSON.stringify({body})
         }))
 
+        // Validate save operation
         if(!response.ok) {
           throw new Error('Failed to save the note')
         }
+
+        // Update note ID for new entries
         if (!id) {
           const newNote = await response.json();
           setID(newNote.id);
@@ -44,10 +52,12 @@ export default function Home() {
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newNote = e.target.value;
+
+    // Trigger note update and autosave
     setNote(newNote);
     savedNote(newNote);
 
-    // Detect mention @
+    // Dynamic user mention filtering
     const words = newNote.split(/\s+/);
     const lastWord = words[words.length - 1];
 
@@ -65,16 +75,19 @@ export default function Home() {
     }
   };
 
+  // Insert selected user mention into the note
   const handleMention = (user: {first_name: string}) => {
     const noteWords = note.split(" ");
     noteWords[noteWords.length - 1] = `@${user.first_name} `;
     const newNote = noteWords.join(" ");
 
+    // Update note with mention and save
     setNote(newNote);
     setFilteredUsers([]);
     savedNote(newNote);
   };
 
+  // Handle loading and error states
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
 
