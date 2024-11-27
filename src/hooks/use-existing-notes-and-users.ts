@@ -1,4 +1,5 @@
 import {useState, useEffect} from "react";
+import { fetchData } from "../app/utils/api";
 
 const SESSION = 'challenge_surfe_sesh';
 const BASE_URL = `https://challenge.surfe.com/${SESSION}`;
@@ -9,9 +10,9 @@ interface Users {
   first_name: string;
 }
 
-export function useExistingUserAndNotes() {
-  const [id, setID] = useState('');
-  const [note, setNote] = useState([]);
+export function useExistingData() {
+  const [id, setID] = useState<number | null>(null);
+  const [note, setNote] = useState<string>("");
   const [users, setUsers] = useState<Users[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -21,25 +22,20 @@ export function useExistingUserAndNotes() {
       try {
         setIsLoading(true);
 
-        // Existing Notes
-        const response = await fetch(`${BASE_URL}/notes`);
-        if (response.ok) {
-          const noteData = await response.json();
-          if (noteData.length > 0) {
-            const latestNote = noteData[noteData.length - 1];
-            setNote(latestNote.body);
-            setID(latestNote.id);
-          }
+        // Fetch the Existing Notes
+        const notes = await fetchData<{ id: number; body: string }[]>(
+          `${BASE_URL}/notes`
+        );
+
+        if (notes.length > 0) {
+          const latestNote = notes[notes.length - 1];
+          setNote(latestNote.body);
+          setID(latestNote.id);
         }
 
-        // Existing Users
-        const userResponse = await fetch(USERS_URL);
-        if (!userResponse.ok) {
-          throw new Error('Failed to load the users');
-        }
-        
-        const userData: Users[] = await userResponse.json();
-        setUsers(userData);
+        // Fetch the Existing Users
+        const users = await fetchData<Users[]>(USERS_URL);
+        setUsers(users);
 
         setIsLoading(false);
       } catch (err: unknown) {
@@ -55,5 +51,5 @@ export function useExistingUserAndNotes() {
     fetchSessionData();
   }, []);
 
-  return {id, note, users, error, isLoading};
+  return { id, note, users, error, isLoading, setID, setNote };
 }
