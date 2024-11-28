@@ -18,7 +18,6 @@ export default function Home() {
 
   // State management for user filtering during mentions
   const [filteredUsers, setFilteredUsers] = useState<Users[]>([]);
-  const [lastUpdated, setLastUpdated] = useState();
 
   // Optimized note saving with debounce to reduce unnecessary network calls
   const savedNote = useCallback(
