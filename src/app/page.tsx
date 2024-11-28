@@ -18,6 +18,7 @@ export default function Home() {
 
   // State management for user filtering during mentions
   const [filteredUsers, setFilteredUsers] = useState<Users[]>([]);
+  const [lastUpdated, setLastUpdated] = useState();
 
   // Optimized note saving with debounce to reduce unnecessary network calls
   const savedNote = useCallback(
@@ -91,6 +92,13 @@ export default function Home() {
   if (isLoading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
 
+  const today = new Date();
+  const day = today.getDate();
+  const month = today.getMonth() + 1;
+  const year = today.getFullYear();
+
+  const latestUpdated = `${day}/${month}/${year}`
+
   return (
     <div className="mt-24">
       <main className="container mx-auto min-h-screen">
@@ -99,7 +107,7 @@ export default function Home() {
         </h1>
         <div className="relative w-96 bg-white rounded-lg p-6 m-auto">
           <h2 className="text-3xl font-bold text-gray-900">Note Title</h2>
-          <p className="text-sm text-gray-600">Last update: 22 Nov 2024</p>
+          <p className="text-sm text-gray-600">Last update: {latestUpdated}</p>
           <textarea
             value={note}
             onChange={handleNoteChange}
